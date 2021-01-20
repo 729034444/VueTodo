@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>TodoMVC</title>
+    <script src="https://unpkg.com/vue"></script>
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://unpkg.com/todomvc-app-css@2.2.0/index.css"
+    />
+    <style>
+      [v-cloak] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="todoapp">
+      <header class="header">
+        <h1>VueTodo</h1>
+        <!--    v-model数据双向绑定；v-show判断是否显示；v-cloak当浏览器未解析完成时，style设置      -->
+        <input
+          class="new-todo"
+          autofocus
+          autocomplete="off"
+          placeholder="What needs to be done?"
+          v-model="newTodo"
+          @keyup.enter="addTodo"
+        />
+      </header>
+      <section class="main" v-show="todos.length" v-cloak>
+        <!--     这个input是全选按钮，class设置了一个左侧向下箭头的小标     -->
+        <input
+          id="toggle-all"
+          class="toggle-all"
+          type="checkbox"
+          v-model="allDone"
+        />
+        <label for="toggle-all"></label>
+        <!--     label for规定与哪个表单元素绑定     -->
+
+
+        <!--
+            下面的url展示任务列表：
+            1：v-for遍历filteredTodos；
+                filteredTodos是computed里面的函数方法：
+                   return filters[this.visibility](this.todos);
+                   返回的是，去执行filters方法：
+                      [this.visibility]是data里的值，默认"all"
+                      (this.todos)是传的参数，其中初始数据todos: todoStorage.fetch(),
+
+                      然后，filters return了相应的todos数据。
+
+              也就是说：v-for="todo in filteredTodos"
+              遍历的是相应的todos.
+
+            2：:key双向绑定todo.id
+        -->
+        <ul class="todo-list">
+          <li
+            v-for="todo in filteredTodos"
+            class="todo"
+            :key="todo.id"
+            :class="{ completed: todo.completed, editing: todo == editedTodo }"
+          >
+            <div class="view">
+              <!-- input：每个任务列表左边的勾选；label：双击修改；button：删除按钮 -->
+              <input class="toggle" type="checkbox" v-model="todo.completed"/>
+              <label @dblclick="editTodo(todo)">{{ todo.title }}</label>
+              <button class="destroy" @click="removeTodo(todo)"></button>
+            </div>
+            <!-- 下面这个input是怎么跟上面产生关联的暂不知道
+                 效果是，被隐式关联在每个todo下。
+
+                 所以，前端html和vue关联初步搞清了，接下来是看具体的前端业务代码。
+            -->
+            <input
+              class="edit"
+              type="text"
+              v-model="todo.title"
+              v-todo-focus="todo == editedTodo"
+              @blur="doneEdit(todo)"
+              @keyup.enter="doneEdit(todo)"
+              @keyup.esc="cancelEdit(todo)"
+            />
+          </li>
+        </ul>
+      </section>
+
+      <footer class="footer" v-show="todos.length" v-cloak>
+        <span class="todo-count">
+          <strong>{{ remaining }}</strong> {{ remaining | pluralize }} 待办事项
+        </span>
+        <ul class="filters">
+          <li>
+            <a href="#/all" :class="{ selected: visibility == 'all' }">所有</a>
+          </li>
+          <li>
+            <a href="#/active" :class="{ selected: visibility == 'active' }"
+              >待办</a
+            >
+          </li>
+          <li>
+            <a
+              href="#/completed"
+              :class="{ selected: visibility == 'completed' }"
+              >已完成</a
+            >
+          </li>
+        </ul>
+        <button
+          class="clear-completed"
+          @click="removeCompleted"
+          v-show="todos.length > remaining"
+        >
+          删除已完成任务
+        </button>
+      </footer>
+    </section>
+
+
+    <script>
+      // Full spec-compliant TodoMVC with localStorage persistence
+      // and hash-based routing in ~120 effective lines of JavaScript.
+
+
+      // 显示过滤
+      let filters = {
+        all: function(todos) {
+          return todos;
+        },
+        active: function(todos) {
+          return todos.filter(function(todo) {
+            return !todo.completed;
+          });
+        },
+        completed: function(todos) {
+          return todos.filter(function(todo) {
+            return todo.completed;
+          });
+        }
+      };
+
+      // VUE
+      let app = new Vue({
+
+        data: {
+          todos: todolist,
+          newTodo: "",
+          editedTodo: null,
+          visibility: "all"
+        },
+
+        // computed 计算属性
+        computed: {
+          filteredTodos: function() {
+            return filters[this.visibility](this.todos);
+          },
+          remaining: function() {
+            return filters.active(this.todos).length;
+          },
+          allDone: {
+            get: function() {
+              return this.remaining === 0;
+            },
+            set: function(value) {
+              this.todos.forEach(function(todo) {
+                todo.completed = value;
+              });
+            }
+          }
+        },
+
+        filters: {
+          pluralize: function(n) {
+            return n === 1 ? "item" : "items";
+          }
+        },
+
+        methods: {
+          addTodo: function() {
+            let value = this.newTodo && this.newTodo.trim();
+            if (!value) {
+              return;
+            }
+            this.todos.push({
+              id: todoMysql.uid++,
+              title: value,
+              completed: false
+            });
+            this.newTodo = "";
+          },
+
+          removeTodo: function(todo) {
+            this.todos.splice(this.todos.indexOf(todo), 1);
+          },
+
+          editTodo: function(todo) {
+            // 这里是绑定在lable中的dbclick事件：双击任务，可进行修改，也可以双击后不修改
+            this.beforeEditCache = todo.title;
+            this.editedTodo = todo;
+          },
+
+          doneEdit: function(todo) {
+            // 这个是绑定在lable下面一个input上的@blur和@keyup.enter事件
+            if (!this.editedTodo) {
+              return;
+            }
+            this.editedTodo = null;
+            todo.title = todo.title.trim();
+            if (!todo.title) {
+              this.removeTodo(todo);
+            }
+          },
+
+          cancelEdit: function(todo) {
+            this.editedTodo = null;
+            todo.title = this.beforeEditCache;
+          },
+
+          removeCompleted: function() {
+            this.todos = filters.active(this.todos);
+          }
+
+        },
+
+
+
+
+
+        // a custom directive to wait for the DOM to be updated
+        // before focusing on the input field.
+        // http://vuejs.org/guide/custom-directive.html
+        directives: {
+          "todo-focus": function(el, binding) {
+            if (binding.value) {
+              el.focus();
+            }
+          }
+        }
+      });
+
+      // handle routing
+      function onHashChange() {
+        let visibility = window.location.hash.replace(/#\/?/, "");
+        if (filters[visibility]) {
+          app.visibility = visibility;
+        } else {
+          window.location.hash = "";
+          app.visibility = "all";
+        }
+      }
+
+      window.addEventListener("hashchange", onHashChange);
+      onHashChange();
+
+      // mount
+      app.$mount(".todoapp");
+    </script>
+  </body>
+</html>

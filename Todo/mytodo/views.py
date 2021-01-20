@@ -10,8 +10,6 @@ def TodoList(request):
     # 需求:点击输入框，将任务写入数据库
 
     todolist = Todo.objects.all().order_by('-id')
-    for todo in todolist:
-        print(todo.todo)
 
     if request.method == 'GET':
         # GET请求获取所有已有任务

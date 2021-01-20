@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # 注册组件
     'mytodo.apps.MytodoConfig',
+    'vuetodo.apps.VuetodoConfig'
 ]
 
 MIDDLEWARE = [
@@ -85,6 +86,17 @@ DATABASES = {
         'PASSWORD': '729034664',
         'NAME': 'todo'
     }
+}
+
+CACHES = {
+    "todo": {
+        # 默认缓存数据存储信息：存到 0 号库
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
 }
 
 
