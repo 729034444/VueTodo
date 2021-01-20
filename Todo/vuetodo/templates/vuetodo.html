@@ -134,66 +134,27 @@
                 todo.id = index;
             });
             todoStorage.uid = todos.length;
+
+            // 每次抓取localstorage数据的时候，顺便往redis里存一下，
+            // 但这个只是保存，前端所有的操作还是不和redis发生关联
+
+            // 具体实现：通过post请求，发送todos数据到后端
+            axios.post('/redisstorage', {
+                todos: JSON.stringify(todos)
+                })
+                .then(function () {
+                    console.log('hello post')
+                })
+                .catch(function (error) {
+                    console.log(error)
+                })
+
             return todos;
         },
         save: function (todos) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
         }
     };
-
-    //  redis存储
-    let redis_key = "todolist"
-    let url = 'http://localhost:63342/VueTodo/' +
-        'Todo/vuetodo/templates/vuetodo.html?_ij' +
-        't=m39etgjiukjcrh0j0g0n11f25l#/all'
-    let redisStorage = {
-        fetch: function () {
-            this.axios.get(url)
-                .then(response => {
-                    let todos = JSON.parse(response);
-                    todos.forEach(function (todo, index) {
-                        todo.id = index;
-                        redisStorage.uid = todos.length;
-                        return todos;
-                    })
-                })
-                .catch(function (error) { // 请求失败处理
-                    console.log(error);
-                });
-        },
-        save: function (todos) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-        }
-    };
-
-    // 改写存储方案，存储到mysql
-    let url = 'http://localhost:63342/VueTodo/Todo/vuetodo/templates/vuetodo.html?_ijt=m39etgjiukjcrh0j0g0n11f25l#/all'
-    let todoMysql = {
-        fetch: function () {
-            this.axios.get(url)
-                .then(response => {
-                    let todos = JSON.parse(response);
-                    todos.forEach(function (todo, index) {
-                        todo.id = index;
-                        todoMysql.uid = todos.length;
-                        return todos;
-                    })
-                })
-                .catch(function (error) { // 请求失败处理
-                    console.log(error);
-                });
-        },
-        save: function (todos) {
-            // 这里要把数据发送给前端
-            this.axios.post(url)
-                .then(response => {
-
-                })
-                .catch(function (error) { // 请求失败处理
-                    console.log(error);
-                });
-        }
-    }
 
     // 显示过滤
     let filters = {
@@ -226,7 +187,7 @@
         watch: {
             todos: {  //深度监听，可监听到对象、数组的变化
                 handler: function (todos) {
-                    todoMysql.save(todos);
+                    todoStorage.save(todos);
                 },
                 deep: true
             }
@@ -260,12 +221,13 @@
 
         methods: {
             addTodo: function () {
+                console.log('hello addtodo')
                 let value = this.newTodo && this.newTodo.trim();
                 if (!value) {
                     return;
                 }
                 this.todos.push({
-                    id: todoMysql.uid++,
+                    id: todoStorage.uid++,
                     title: value,
                     completed: false
                 });
